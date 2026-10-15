@@ -49,6 +49,7 @@ key.txt
 # 环境
 .env
 .env.*
+!.env.example
 backend/.venv/
 
 # 根目录本地 skills（不影响 .claude/skills/）
