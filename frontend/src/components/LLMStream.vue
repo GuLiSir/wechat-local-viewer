@@ -3,7 +3,7 @@
     <!-- LLM 交互区域 -->
     <div class="p-3">
       <!-- 流式响应显示 -->
-      <div v-if="streaming || responseText" class="mb-3 max-h-40 overflow-y-auto">
+      <div v-if="streaming || responseText || error" class="mb-3 max-h-40 overflow-y-auto">
         <div class="bg-gray-50 rounded-lg p-3">
           <div class="flex items-center justify-between mb-2">
             <span class="text-sm font-medium text-gray-700">AI 响应</span>
@@ -16,7 +16,7 @@
             </button>
           </div>
           <div class="text-sm text-gray-600 whitespace-pre-wrap">
-            {{ responseText || '思考中...' }}
+            {{ responseText || progressText || '思考中...' }}
           </div>
           <div v-if="error" class="text-xs text-red-500 mt-2">
             {{ error }}
@@ -36,7 +36,7 @@
         />
         <button
           @click="sendPrompt"
-          :disabled="streaming || !prompt.trim() || !hasLLMConfig"
+          :disabled="streaming || !prompt.trim()"
           class="px-4 py-2 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white rounded-lg text-sm font-medium"
         >
           {{ streaming ? '生成中...' : '总结' }}
@@ -62,6 +62,7 @@ const settingsStore = useSettingsStore()
 
 const prompt = ref('')
 const responseText = ref('')
+const progressText = ref('')
 const streaming = ref(false)
 const error = ref('')
 
@@ -73,6 +74,10 @@ const hasLLMConfig = computed(() => {
 
 async function sendPrompt() {
   if (!prompt.value.trim() || !sessionStore.currentSession || streaming.value) return
+  if (!hasLLMConfig.value) {
+    error.value = '请先在「设置」（右上角 ⚙️）中配置 LLM：Base URL / API Key / Model'
+    return
+  }
 
   const request: LLMChatRequest = {
     session: sessionStore.currentSession.username,
@@ -85,21 +90,31 @@ async function sendPrompt() {
   streaming.value = true
   error.value = ''
   responseText.value = ''
+  progressText.value = ''
 
   try {
     await apiClient.streamLLM(request, (event) => {
       switch (event.type) {
         case 'start':
           responseText.value = ''
+          progressText.value = ''
+          break
+        case 'progress':
+          progressText.value = event.content || ''
           break
         case 'content':
           responseText.value += event.content || ''
           break
         case 'end':
           streaming.value = false
+          progressText.value = ''
+          if (!responseText.value && !error.value) {
+            error.value = '模型没有返回内容（可能思考过程超出 token 预算被截断），请重试'
+          }
           break
         case 'error':
           error.value = event.error || '未知错误'
+          progressText.value = ''
           streaming.value = false
           break
       }

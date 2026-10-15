@@ -84,7 +84,7 @@ export const apiClient = {
   // 流式 LLM 聊天 - SSE
   async streamLLM(
     req: LLMChatRequest,
-    onEvent: (e: { type: 'start' | 'content' | 'end' | 'error'; content?: string; error?: string }) => void
+    onEvent: (e: { type: 'start' | 'content' | 'progress' | 'end' | 'error'; content?: string; error?: string }) => void
   ): Promise<void> {
     if (_streamAbort) _streamAbort.abort()
     _streamAbort = new AbortController()
@@ -119,6 +119,7 @@ export const apiClient = {
             const obj = JSON.parse(data)
             if (obj.type === 'content') onEvent({ type: 'content', content: obj.content })
             else if (obj.type === 'start') onEvent({ type: 'start' })
+            else if (obj.type === 'progress') onEvent({ type: 'progress', content: obj.content })
             else if (obj.type === 'end') onEvent({ type: 'end' })
             else if (obj.type === 'error') onEvent({ type: 'error', error: obj.error })
           } catch {}
