@@ -201,6 +201,7 @@ def parse_messages(md5_to_username: dict[str, str] | None = None) -> Iterator[Me
                         yield Message(
                             session_username=session_username,
                             local_id=int(local_id),
+                            source_file=db_file.name,
                             create_time=int(ct),
                             sender_username=sender,
                             sender_display_name=sender,

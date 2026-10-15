@@ -24,6 +24,7 @@ class Message(BaseModel):
     id: Optional[int] = None
     session_username: str
     local_id: int
+    source_file: Optional[str] = None
     create_time: int
     sender_username: Optional[str] = None
     sender_display_name: Optional[str] = None

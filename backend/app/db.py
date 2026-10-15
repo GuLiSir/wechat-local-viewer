@@ -16,6 +16,23 @@ def init_schema():
     """初始化中间层数据库"""
     conn = get_connection()
     try:
+        # 迁移：旧版 messages 缺少 source_file（分片去重键）。微信分片 DB（message_0/message_1…）
+        # 中同名 Msg_ 表的 local_id 各自从 1 开始，仅靠 (session, local_id) 去重会互相覆盖丢消息。
+        # 缓存库可重建，直接删表重建，并清空指纹触发下次全量导入。
+        try:
+            cols = [r[1] for r in conn.execute("PRAGMA table_info(messages)")]
+            if cols and "source_file" not in cols:
+                conn.executescript("""
+                    DROP TABLE IF EXISTS messages;
+                    DROP TABLE IF EXISTS messages_fts;
+                """)
+                conn.execute(
+                    "INSERT OR REPLACE INTO meta (key, value) VALUES ('source_fingerprint', '')"
+                )
+                conn.commit()
+        except Exception:
+            pass
+
         conn.executescript("""
         CREATE TABLE IF NOT EXISTS sessions (
             username TEXT PRIMARY KEY,
@@ -33,6 +50,7 @@ def init_schema():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             session_username TEXT NOT NULL,
             local_id INTEGER NOT NULL,
+            source_file TEXT NOT NULL DEFAULT '',
             create_time INTEGER,
             sender_username TEXT,
             sender_display_name TEXT,
@@ -41,7 +59,7 @@ def init_schema():
             media_md5 TEXT,
             is_self INTEGER DEFAULT 0,
             raw_json TEXT,
-            UNIQUE(session_username, local_id)
+            UNIQUE(session_username, source_file, local_id)
         );
         CREATE INDEX IF NOT EXISTS idx_messages_session_time ON messages(session_username, create_time DESC);
         CREATE INDEX IF NOT EXISTS idx_messages_time ON messages(create_time DESC);

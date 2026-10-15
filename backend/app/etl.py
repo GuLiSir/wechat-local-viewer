@@ -43,12 +43,13 @@ def _batch_insert_messages(messages: list):
     try:
         conn.executemany("""
             INSERT OR REPLACE INTO messages
-            (session_username, local_id, create_time, sender_username, sender_display_name, local_type, content, media_md5, is_self, raw_json)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (session_username, local_id, source_file, create_time, sender_username, sender_display_name, local_type, content, media_md5, is_self, raw_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, [
             (
                 msg.session_username,
                 msg.local_id,
+                msg.source_file or "",
                 msg.create_time,
                 msg.sender_username,
                 msg.sender_display_name,
